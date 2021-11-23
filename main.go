@@ -9,6 +9,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+
+	"github.com/Huang-Wei/tryout-watch-completed-pod/pkg"
 )
 
 var (
@@ -35,9 +37,8 @@ func main() {
 		klog.Fatalf("Error building kubernetes clientset: %s.", err.Error())
 	}
 
-	ctx := context.Background()
 	// Create a SharedInformerFactory and watch on Pod change.
-	informerFactory := NewInformerFactory(cs, 0)
+	informerFactory := pkg.NewInformerFactory(cs, 0)
 	informerFactory.Core().V1().Pods().Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc:    podAdded,
@@ -46,19 +47,20 @@ func main() {
 		},
 	)
 
+	klog.InfoS("Start")
+
+	ctx := context.Background()
 	// Start all informers.
 	informerFactory.Start(ctx.Done())
-
 	// Wait for all caches to sync before scheduling.
 	informerFactory.WaitForCacheSync(ctx.Done())
 
-	klog.Infof("Start")
 	<-ctx.Done()
 }
 
 func podAdded(obj interface{}) {
 	pod := obj.(*v1.Pod)
-	klog.Infof("podAdd(): name->%v nodeName->%v phase->%v", pod.Name, pod.Spec.NodeName, pod.Status.Phase)
+	klog.InfoS("Pod added", "pod", klog.KObj(pod), "assignedNodeName", pod.Spec.NodeName, "phase", pod.Status.Phase)
 }
 
 func podUpdated(o, n interface{}) {
@@ -68,9 +70,9 @@ func podUpdated(o, n interface{}) {
 		// Two different versions of the same Deployment will always have different RVs.
 		return
 	}
-	klog.Infof("podUpdate()")
-	klog.Infof("old: name->%v nodeName->%v phase->%v", old.Name, old.Spec.NodeName, old.Status.Phase)
-	klog.Infof("new: name->%v nodeName->%v phase->%v", new.Name, new.Spec.NodeName, new.Status.Phase)
+	klog.InfoS("Pod updated")
+	klog.InfoS("Old pod", "pod", klog.KObj(old), "assignedNodeName", old.Spec.NodeName, "phase", old.Status.Phase)
+	klog.InfoS("New pod", "pod", klog.KObj(new), "assignedNodeName", new.Spec.NodeName, "phase", new.Status.Phase)
 }
 
 func podDeleted(obj interface{}) {
@@ -82,13 +84,13 @@ func podDeleted(obj interface{}) {
 		var ok bool
 		pod, ok = t.Obj.(*v1.Pod)
 		if !ok {
-			klog.Errorf("cannot convert to *v1.Pod: %v", t.Obj)
+			klog.ErrorS(nil, "Cannot convert to *v1.Pod", "pod", t.Obj)
 			return
 		}
 	default:
-		klog.Errorf("cannot convert to *v1.Pod: %v", t)
+		klog.ErrorS(nil, "Cannot convert to *v1.Pod", "pod", t)
 		return
 	}
 
-	klog.Infof("podDelete(): name->%v nodeName->%v phase->%v", pod.Name, pod.Spec.NodeName, pod.Status.Phase)
+	klog.InfoS("Pod deleted", "pod", klog.KObj(pod), "assignedNodeName", pod.Spec.NodeName, "phase", pod.Status.Phase)
 }

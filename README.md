@@ -14,7 +14,7 @@ metadata:
 spec:
   containers:
   - name: pause
-    image: k8s.gcr.io/pause:3.2
+    image: k8s.gcr.io/pause:3.6
 ```
 
 - k apply -f pod.yaml
